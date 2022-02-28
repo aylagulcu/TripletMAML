@@ -71,9 +71,9 @@ def main(
                                                   train_samples=2*shots,
                                                   test_ways=ways,
                                                   test_samples=2*shots,
-                                                  num_tasks=20000,learner
-                                                  root='~/data',
-    )
+                                                  num_tasks=20000,
+                                                  root='~/data')
+                                                  
 
     # BenchmarkTasksets(train, validation, test); len(tasksets) is 3
     # len(tasksets[0]) = 20000; len(tasksets[1]) = 20000; len(tasksets[2]) = 20000; equal to num_tasks parameter value!

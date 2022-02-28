@@ -2,9 +2,9 @@
 
 import torch
 import learn2learn as l2l
+from torch.nn.utils.weight_norm import WeightNorm
 
 from scipy.stats import truncnorm
-
 
 def truncated_normal_(tensor, mean=0.0, std=1.0):
     # PT doesn't have truncated normal.
@@ -354,4 +354,58 @@ class TripletCNN4(torch.nn.Module):
         x3_clsprob = self.classifier(x3)
         return x1,x2,x3, x1_clsprob, x2_clsprob, x3_clsprob # embeddings and class probabilities
 
+
+class TripletCNN4_BaselinePP(torch.nn.Module):
+
+    def __init__(
+        self,
+        output_size,
+        hidden_size=32,
+        layers=4,
+        channels=1,
+        max_pool=False,
+        embedding_size= 256 
+    ):
+        super(TripletCNN4_BaselinePP, self).__init__()
+        self.features = CNN4Backbone(
+            hidden_size=hidden_size,
+            channels=channels,
+            max_pool=max_pool,
+            layers=layers,
+            max_pool_factor=1
+        )
+        self.classifier = torch.nn.Linear(
+            embedding_size,
+            output_size,
+            bias=True,
+        )
+        if output_size <=200:
+            self.scale_factor = 2; 
+            #a fixed scale factor to scale the output of cos value into a reasonably large input for softmax, for to reproduce the result of CUB with ResNet10, use 4. see the issue#31 in the github 
+        else:
+            self.scale_factor = 10; 
+            #in omniglot, a larger scale factor is required to handle >1000 output classes.
+        maml_init_(self.classifier)
+        self.hidden_size = hidden_size
+
+
+    def forward(self, x1,x2,x3):
+        self.classifier.weight.data = self.classifier.weight.data.div(torch.norm(self.classifier.weight.data, p=2, dim =1).unsqueeze(1).expand_as(self.classifier.weight.data) + 0.00001)
+
+        x1 = self.features(x1) # Omniglot input [1, 28, 28])
+        x1_normalized= x1.div( torch.norm(x1, p=2, dim =1).unsqueeze(1).expand_as(x1) + 0.00001) # now, the norm of each x is 1
+        cos_dist = self.classifier(x1_normalized) 
+        x1_clsprob = self.scale_factor* (cos_dist) 
+
+        x2 = self.features(x2) # Omniglot input [1, 28, 28])
+        x2_normalized= x2.div( torch.norm(x2, p=2, dim =1).unsqueeze(1).expand_as(x2) + 0.00001)
+        cos_dist = self.classifier(x2_normalized) 
+        x2_clsprob = self.scale_factor* (cos_dist) 
+
+        x3 = self.features(x3) # Omniglot input [1, 28, 28])
+        x3_normalized= x3.div( torch.norm(x3, p=2, dim =1).unsqueeze(1).expand_as(x3) + 0.00001)
+        cos_dist = self.classifier(x3_normalized) 
+        x3_clsprob = self.scale_factor* (cos_dist) 
+
+        return x1,x2,x3, x1_clsprob, x2_clsprob, x3_clsprob # embeddings and class probabilities
 
