@@ -245,7 +245,6 @@ class TripletOmniglot(Dataset):
 
             return X_support ,y_support, X_query, y_query
 
-
 if __name__ == "__main__":
     import matplotlib.pyplot as plt
     def show_triplets(data,label):
@@ -289,3 +288,4 @@ if __name__ == "__main__":
     
     show_helper(a[0],a[1],"Support Images")
     show_helper(a[2],a[3],"Query Images")
+

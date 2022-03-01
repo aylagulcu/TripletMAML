@@ -16,15 +16,21 @@ from Triplets import *
 from cnn4_triplet import *
 from losses import *
 
+Triplet_Model_Parameter = {
+    "CIFARFS" : {"data" : TripletFSCIFAR100 , "root" : "./data", "download": True , "transform" : transforms.Compose([transforms.ToTensor()]), "hidden_size":64, "layers":4, "channels":3, "max_pool":True, "embedding_size":256,"margin":1.0,"lambda":0} ,
+    "CUB" : {"data" : TripletCUB , "root" : "./", "download": True , "transform" : transforms.Compose([transforms.ToTensor()]), "hidden_size":64, "layers":4, "channels":3, "max_pool":True, "embedding_size":1600,"margin":1.0,"lambda":0},
+    "FLOWERS" : {"data" : TripletFlowers , "root" : "./", "download": True , "transform" : transforms.Compose([transforms.ToTensor()]), "hidden_size":64, "layers":4, "channels":3, "max_pool":True, "embedding_size":1600,"margin":1.0,"lambda":0},
+    "MINIIMAGENET" : {"data" : TripletMiniImageNet , "root" : "~/data", "download": True , "transform" : transforms.Compose([transforms.ToTensor()]), "hidden_size":32, "layers":4, "channels":3, "max_pool":True, "embedding_size":800,"margin":1.0,"lambda":1},
+    "OMNIGLOT" : {"data" : TripletOmniglot , "root" : "~/data", "download": True , "transform" : transforms.Compose([transforms.ToTensor(),transforms.Resize((28,28))]), "hidden_size":64, "layers":4, "channels":1, "max_pool":False, "embedding_size":256,"margin":1.0,"lambda":1.5}
+}
+
 print(torch.__version__)
+print(torch.cuda.is_available())
 
 
 def accuracy(predictions, targets):
     predictions = predictions.argmax(dim=1).view(targets.shape)
-    # return (predictions == targets).sum().float() / targets.size(0)
-
-    mask = np.array([True, False, False, False, False, False, False, False, True, True, True, True])
-    return (predictions[mask] == targets[mask]).sum().float() / targets[mask].size(0)
+    return (predictions == targets).sum().float() / targets.size(0)
 
 
 def fast_adapt(batch, learner, loss, adaptation_steps, shots, ways, device):
@@ -55,51 +61,42 @@ def fast_adapt(batch, learner, loss, adaptation_steps, shots, ways, device):
 
 
 def main(
-        triplet_method,
         ways=5, # in our triplet implementation, number of distinct classes is 5
         shots=1,
         meta_lr=0.001, # as in MAML
         fast_lr=0.01, # as in MAML
         meta_batch_size=4, # Maml Omniglot:32; miniImageNet: 4 
         adaptation_steps=5,
-        test_adaptation_steps=10,
+        test_adaptation_steps=3,
         num_iterations= 60000, # as in MAML
         cuda=True,
         seed=42,
-        num_test_episodes= 600
+        num_test_episodes= 600,
+        selected_model = "CIFARFS"
 ):
 
     random.seed(seed)
     np.random.seed(seed)
     torch.manual_seed(seed)
-    device = torch.device('cuda')
+    device = torch.device('cpu')
     
     if cuda:
         torch.cuda.manual_seed(seed)
         device = torch.device('cuda')    
 
-    if triplet_method == "omniglot":
-        Triplet_dataset = TripletOmniglot(root='~/data', download=True,transform = transforms.Compose([transforms.ToTensor(),transforms.Resize((28,28)),]))
-    elif triplet_method == "miniImagenet":
-        Triplet_dataset = TripletMiniImageNet(root='~/data', download=True,transform = transforms.Compose([transforms.ToTensor()]))
-    elif triplet_method == "flowers":
-        Triplet_dataset = TripletFlowers(root='./', download=True,transform = transforms.Compose([transforms.ToTensor()]))
-    elif triplet_method == "cub":
-        Triplet_dataset = TripletCUB(root='./', download=True,transform = transforms.Compose([transforms.ToTensor()]))
-    elif triplet_method == "fscifar100":
-        Triplet_dataset = TripletFSCIFAR100(root='./data', download=True,transform = transforms.Compose([transforms.ToTensor()]))
-    # Create model
-    model = TripletCNN4(output_size= ways, hidden_size=32, layers=4, channels=3, max_pool=True, embedding_size=800) # 800 with padding:same! for miniimagenet if hidden 32, embedding 1600
+    triplet_imagenet_dataset = Triplet_Model_Parameter[selected_model]["data"](root = Triplet_Model_Parameter[selected_model]["root"], download = Triplet_Model_Parameter[selected_model]["download"], transform = Triplet_Model_Parameter[selected_model]["transform"])
 
+
+    # Create model
+    model = TripletCNN4(output_size= ways, hidden_size=Triplet_Model_Parameter[selected_model]["hidden_size"], layers=Triplet_Model_Parameter[selected_model]["layers"], channels=Triplet_Model_Parameter[selected_model]["channels"], max_pool=Triplet_Model_Parameter[selected_model]["max_pool"], embedding_size=Triplet_Model_Parameter[selected_model]["embedding_size"])
+    
     model.to(device)
     maml = l2l.algorithms.MAML(model, lr=fast_lr, first_order=True)
     opt = optim.Adam(maml.parameters(), meta_lr) # meta-update
      
-    #margin= 1.0
-    lamda= 1.5
-    combined_loss_fn= CombinedLoss2(lamda)
+    margin= Triplet_Model_Parameter[selected_model]["margin"]
+    combined_loss_fn= CombinedLoss(margin)
 
-    # META TRAIN #
     total_meta_train_error = []
     total_meta_train_accuracy = []
     total_meta_valid_error = []
@@ -118,7 +115,7 @@ def main(
             # Compute meta-training loss
             # print('Task no: ', task)
             learner = maml.clone()
-            batch = Triplet_dataset.sample("train") 
+            batch = triplet_imagenet_dataset.sample("train",shots) 
             evaluation_error, evaluation_accuracy = fast_adapt(batch,
                                                                learner,
                                                                combined_loss_fn,
@@ -132,7 +129,7 @@ def main(
 
             # Compute meta-validation loss
             learner = maml.clone()
-            batch = Triplet_dataset.sample("validation")
+            batch = triplet_imagenet_dataset.sample("validation",shots)
             evaluation_error, evaluation_accuracy = fast_adapt(batch,
                                                                learner,
                                                                combined_loss_fn,
@@ -149,36 +146,40 @@ def main(
             p.grad.data.mul_(1.0 / meta_batch_size)
         opt.step()
 
+        # # Print some metrics
+        # print('\n')
+        # print('Iteration', iteration)
+        # print('Meta Train Error', meta_train_error / meta_batch_size)
+        # print('Meta Train Accuracy', meta_train_accuracy / meta_batch_size)
+        # print('Meta Valid Error', meta_valid_error / meta_batch_size)
+        # print('Meta Valid Accuracy', meta_valid_accuracy / meta_batch_size)
+
         total_meta_train_error.append(meta_train_error / meta_batch_size)
         total_meta_train_accuracy.append(meta_train_accuracy / meta_batch_size)
         total_meta_valid_error.append(meta_valid_error / meta_batch_size)
         total_meta_valid_accuracy.append(meta_valid_accuracy / meta_batch_size)
 
     # write training results:
-    f = open("result_train.csv", "w")
-    f.write('\t'.join(('tr_er', 'val_er', 'tr_acc', 'val_acc')))
-    f.write('\n')
-    for (tr_er, val_er, tr_acc, val_acc) in zip(total_meta_train_error, total_meta_valid_error, total_meta_train_accuracy, total_meta_valid_accuracy):
-        items= (str(tr_er),',', str(val_er),',',  str(tr_acc),',',  str(val_acc))
-        f.write('\t'.join(items))
-        f.write('\n')
-    f.close()
+    # f = open("result_train"+str(selected_model)+".csv", "w")
+    # f.write('\t'.join(('tr_er', 'val_er', 'tr_acc', 'val_acc')))
+    # f.write('\n')
+    # for (tr_er, val_er, tr_acc, val_acc) in zip(total_meta_train_error, total_meta_valid_error, total_meta_train_accuracy, total_meta_valid_accuracy):
+    #     items= (str(tr_er),',', str(val_er),',',  str(tr_acc),',',  str(val_acc))
+    #     f.write('\t'.join(items))
+    #     f.write('\n')
+    # f.close()
 
-    # -- Save model parameters #
-    # https://pytorch.org/tutorials/beginner/saving_loading_models.html
-    torch.save(model,str(triplet_method)+"_model.pt")
+    #-- Save model parameters #
+    #-- https://pytorch.org/tutorials/beginner/saving_loading_models.html
+    torch.save(model,"./maml_model_"+str(selected_model)+".pt")
 
+    # Create model using saved parameters:
+    model = TripletCNN4(output_size= ways, hidden_size=Triplet_Model_Parameter[selected_model]["hidden_size"], layers=Triplet_Model_Parameter[selected_model]["layers"], channels=Triplet_Model_Parameter[selected_model]["channels"], max_pool=Triplet_Model_Parameter[selected_model]["max_pool"], embedding_size=Triplet_Model_Parameter[selected_model]["embedding_size"])
 
-    # # Comment this section out if you do not want to use saved model!
-    # # Create model using saved parameters:
-    # model = TripletCNN4(output_size= ways, hidden_size=64, layers=4, channels=3, max_pool=True, embedding_size=1600)
-    # model = torch.load("./maml_model_miniimagenet_Tuplet05.pt")
-    # model.to(device)
-    # maml = l2l.algorithms.MAML(model, lr=fast_lr, first_order=True)
-    # #
+    model = torch.load("./maml_model_"+str(selected_model)+".pt")
+    model.to(device)
+    maml = l2l.algorithms.MAML(model, lr=fast_lr, first_order=True)
 
-
-    # META TEST #
     total_meta_test_error = []
     total_meta_test_accuracy = []
 
@@ -186,25 +187,22 @@ def main(
         meta_test_error = 0.0
         meta_test_accuracy = 0.0
 
-        for task in range(meta_batch_size):
-            # Compute meta-testing loss
-            learner = maml.clone()
-            batch = Triplet_dataset.sample("test") 
-            evaluation_error, evaluation_accuracy = fast_adapt(batch,
-                                                            learner,
-                                                            combined_loss_fn,
-                                                            test_adaptation_steps,
-                                                            shots,
-                                                            ways,
-                                                            device)
-
-
-            meta_test_error += evaluation_error.item()
-            meta_test_accuracy += evaluation_accuracy.item()
-        
-        total_meta_test_error.append(meta_test_error / meta_batch_size)
-        total_meta_test_accuracy.append(meta_test_accuracy / meta_batch_size)
-        print(i, 'Test accuracy: ', str(meta_test_accuracy / meta_batch_size))
+        # Compute meta-testing loss
+        learner = maml.clone()
+        batch = triplet_imagenet_dataset.sample("test",shots) 
+        evaluation_error, evaluation_accuracy = fast_adapt(batch,
+                                                           learner,
+                                                           combined_loss_fn,
+                                                           test_adaptation_steps,
+                                                           shots,
+                                                           ways,
+                                                           device)
+        meta_test_error += evaluation_error.item()
+        meta_test_accuracy += evaluation_accuracy.item()
+    
+        total_meta_test_error.append(meta_test_error)
+        total_meta_test_accuracy.append(meta_test_accuracy)
+        print(i, 'Test accuracy: ', str(meta_test_accuracy))
     
     total_meta_test_accuracy = np.array(total_meta_test_accuracy)
     mean = np.mean(total_meta_test_accuracy)
@@ -214,23 +212,22 @@ def main(
     print('Average test accuracy: ', mean, '+/-', ci95)
 
     # write test results:
-    f = open("result_test.csv", "w")
-    f.write('\t'.join(('test_er',',', 'test_acc')))
-    f.write('\n')
-    for (test_er, test_acc) in zip(total_meta_test_error, total_meta_test_accuracy):
-        items= (str(test_er),',', str(test_acc))
-        f.write('\t'.join(items))
-        f.write('\n')
-    f.write('\t'.join((str(mean),',', str(ci95))))
-    f.close()
+    # f = open("result_test"+str(selected_model)+".csv", "w")
+    # f.write('\t'.join(('test_er',',', 'test_acc')))
+    # f.write('\n')
+    # for (test_er, test_acc) in zip(total_meta_test_error, total_meta_test_accuracy):
+    #     items= (str(test_er),',', str(test_acc))
+    #     f.write('\t'.join(items))
+    #     f.write('\n')
+    # f.write('\t'.join((str(mean),',', str(ci95))))
+    # f.close()
 
 
 if __name__ == '__main__':
-    # Triplet yöntemi main fonksiyona paramtere olarak verilecek örnek
-    #Parametreler
-    # - omniglot
-    # - miniImagenet
-    # - flowers
-    # - cub
-    # - fscifar100
-    main("omniglot")
+    #data Parameters can be : 
+    #CIFARFS
+    #CUB
+    #FLOWERS
+    #MINIIMAGENET
+    #OMNIGLOT
+    main(shots=5,selected_model="CUB")

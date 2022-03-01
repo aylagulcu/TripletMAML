@@ -80,14 +80,15 @@ def main(
                                 )
 
     # Create model
-    model = TripletCNN4(output_size= ways, hidden_size=64, layers=4, channels=1, max_pool=False, embedding_size=256) # For Omniglot, if maxpool embedding size: 64; if nomaxpool(stride 2) then embedding size: 256
+    model = TripletCNN4_BaselinePP(output_size= ways, hidden_size=64, layers=4, channels=1, max_pool=False, embedding_size=256) # For Omniglot, if maxpool embedding size: 64; if nomaxpool(stride 2) then embedding size: 256
+    #TripletCNN4
 
     model.to(device)
     maml = l2l.algorithms.MAML(model, lr=fast_lr, first_order=True) 
     opt = optim.Adam(maml.parameters(), meta_lr) # meta-update
     
     #margin= 1.0
-    lamda= 0.5
+    lamda= 1.5
     combined_loss_fn= CombinedLoss2(lamda)
 
     # META TRAIN #

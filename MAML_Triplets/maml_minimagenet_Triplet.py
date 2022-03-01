@@ -82,14 +82,14 @@ def main(
                                 ) # 84*84*3
 
     # Create model
-    model = TripletCNN4(output_size= ways, hidden_size=32, layers=4, channels=3, max_pool=True, embedding_size=800) # 800 with padding:same! for miniimagenet if hidden 32, embedding 1600
+    model = TripletCNN4_BaselinePP(output_size= ways, hidden_size=32, layers=4, channels=3, max_pool=True, embedding_size=800) # 800 with padding:same! for miniimagenet if hidden 32, embedding 1600
 
     model.to(device)
     maml = l2l.algorithms.MAML(model, lr=fast_lr, first_order=True)
     opt = optim.Adam(maml.parameters(), meta_lr) # meta-update
      
     #margin= 1.0
-    lamda= 1.5
+    lamda= 1
     combined_loss_fn= CombinedLoss2(lamda)
 
     # META TRAIN #

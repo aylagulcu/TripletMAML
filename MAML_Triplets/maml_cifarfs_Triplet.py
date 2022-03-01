@@ -12,7 +12,7 @@ import torch
 from torch import nn, optim
 
 import learn2learn as l2l
-from Triplets import *
+from TripletFSCIFAR100 import *
 from cnn4_triplet import *
 from losses import *
 
@@ -80,7 +80,7 @@ def main(
 
     # Create model
     model = TripletCNN4(output_size= ways, hidden_size=64, layers=4, channels=3, max_pool=True, embedding_size=256)
-
+    
     model.to(device)
     maml = l2l.algorithms.MAML(model, lr=fast_lr, first_order=True)
     opt = optim.Adam(maml.parameters(), meta_lr) # meta-update

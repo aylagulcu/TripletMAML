@@ -18,26 +18,62 @@ import matplotlib.pyplot as plt
 # Batch_size, W, H, C
 # Batch_size, C, W, H
 
-def show_triplets(data,label):
+def show_triplets(img1, img2, img3,img4,img5,img6,img7,img8,img9,img10,img11,img12,label1,label2,label3,label4,label5,label6,label7,label8,label9,label10,label11,label12,title):
     """Display image for testing"""
     fig = plt.figure(figsize=(15, 15))
     plt.title(title,pad =20)
     plt.axis('off')
-    axislist = [fig.add_subplot(20,3,i) for i in range(1,61)]
-    
-    for i in axislist:
-        i.set_axis_off()
-    
-    img_counter = 0
-    label_counter = 60
+    ax1 = fig.add_subplot(4,3,1)
+    ax2 = fig.add_subplot(4,3,2)
+    ax3 = fig.add_subplot(4,3,3)
+    ax4 = fig.add_subplot(4,3,4)
+    ax5 = fig.add_subplot(4,3,5)
+    ax6 = fig.add_subplot(4,3,6)
+    ax7 = fig.add_subplot(4,3,7)
+    ax8 = fig.add_subplot(4,3,8)
+    ax9 = fig.add_subplot(4,3,9)
+    ax10 = fig.add_subplot(4,3,10)
+    ax11 = fig.add_subplot(4,3,11)
+    ax12 = fig.add_subplot(4,3,12)
 
-    for number , ax in enumerate(axislist):
-        if number % 3 == 0 :
-            img_counter = number /3 
-        ax.imshow(data[img_counter].permute(1, 2, 0).cpu().int())
-        ax.title.set_text(data[label_counter].numpy())
-        img_counter = img_counter + 20
-        label_counter = label_counter +20
+    ax1.set_axis_off()
+    ax2.set_axis_off()
+    ax3.set_axis_off()
+    ax4.set_axis_off()
+    ax5.set_axis_off()
+    ax6.set_axis_off()
+    ax7.set_axis_off()
+    ax8.set_axis_off()
+    ax9.set_axis_off()
+    ax10.set_axis_off()
+    ax11.set_axis_off()
+    ax12.set_axis_off()
+
+    ax1.imshow(img1.permute(1, 2, 0).cpu().int())
+    ax2.imshow(img5.permute(1, 2, 0).cpu().int())
+    ax3.imshow(img9.permute(1, 2, 0).cpu().int())
+    ax4.imshow(img2.permute(1, 2, 0).cpu().int())
+    ax5.imshow(img6.permute(1, 2, 0).cpu().int())
+    ax6.imshow(img10.permute(1, 2, 0).cpu().int())
+    ax7.imshow(img3.permute(1, 2, 0).cpu().int())
+    ax8.imshow(img7.permute(1, 2, 0).cpu().int())
+    ax9.imshow(img11.permute(1, 2, 0).cpu().int())
+    ax10.imshow(img4.permute(1, 2, 0).cpu().int())
+    ax11.imshow(img8.permute(1, 2, 0).cpu().int())
+    ax12.imshow(img12.permute(1, 2, 0).cpu().int())
+
+    ax1.title.set_text(label1.numpy())
+    ax2.title.set_text(label5.numpy())
+    ax3.title.set_text(label9.numpy())
+    ax4.title.set_text(label2.numpy())
+    ax5.title.set_text(label6.numpy())
+    ax6.title.set_text(label10.numpy())
+    ax7.title.set_text(label3.numpy())
+    ax8.title.set_text(label7.numpy())
+    ax9.title.set_text(label11.numpy())
+    ax10.title.set_text(label4.numpy())
+    ax11.title.set_text(label8.numpy())
+    ax12.title.set_text(label12.numpy())
 
     plt.show()
     
@@ -45,7 +81,7 @@ def show_helper(tripletx,triplety,title):
     #for i in range(len(tripletx)):
     #    show_triplets(*tripletx[i],*triplety[i])
 
-    show_triplets([*tripletx[0],*tripletx[1],*tripletx[2],*triplety[0],*triplety[1],*triplety[2]],title)
+    show_triplets(*tripletx[0],*tripletx[1],*tripletx[2],*triplety[0],*triplety[1],*triplety[2],title)
         
 
 # %%
