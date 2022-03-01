@@ -12,7 +12,7 @@ import torch
 from torch import nn, optim
 
 import learn2learn as l2l
-from  TripletMiniImageNet import *
+from TripletFSCIFAR100 import *
 from cnn4_triplet import *
 from losses import *
 
@@ -21,10 +21,7 @@ print(torch.__version__)
 
 def accuracy(predictions, targets):
     predictions = predictions.argmax(dim=1).view(targets.shape)
-    # return (predictions == targets).sum().float() / targets.size(0)
-
-    mask = np.array([True, False, False, False, False, False, False, False, True, True, True, True])
-    return (predictions[mask] == targets[mask]).sum().float() / targets[mask].size(0)
+    return (predictions == targets).sum().float() / targets.size(0)
 
 
 def fast_adapt(batch, learner, loss, adaptation_steps, shots, ways, device):
@@ -61,7 +58,7 @@ def main(
         fast_lr=0.01, # as in MAML
         meta_batch_size=4, # Maml Omniglot:32; miniImageNet: 4 
         adaptation_steps=5,
-        test_adaptation_steps=10,
+        test_adaptation_steps=3,
         num_iterations= 60000, # as in MAML
         cuda=True,
         seed=42,
@@ -77,22 +74,20 @@ def main(
         torch.cuda.manual_seed(seed)
         device = torch.device('cuda')    
 
-    triplet_imagenet_dataset = TripletMiniImageNet(root='~/data', download=True,
-                                transform = transforms.Compose([transforms.ToTensor()])
-                                ) # 84*84*3
+    triplet_imagenet_dataset = TripletFSCIFAR100(root='./data', download=True,
+                                transform = transforms.Compose([transforms.ToTensor()]))
+
 
     # Create model
-    model = TripletCNN4_BaselinePP(output_size= ways, hidden_size=32, layers=4, channels=3, max_pool=True, embedding_size=800) # 800 with padding:same! for miniimagenet if hidden 32, embedding 1600
-
+    model = TripletCNN4(output_size= ways, hidden_size=64, layers=4, channels=3, max_pool=True, embedding_size=256)
+    
     model.to(device)
     maml = l2l.algorithms.MAML(model, lr=fast_lr, first_order=True)
     opt = optim.Adam(maml.parameters(), meta_lr) # meta-update
      
-    #margin= 1.0
-    lamda= 1
-    combined_loss_fn= CombinedLoss2(lamda)
+    margin= 1.0
+    combined_loss_fn= CombinedLoss(margin)
 
-    # META TRAIN #
     total_meta_train_error = []
     total_meta_train_accuracy = []
     total_meta_valid_error = []
@@ -142,6 +137,14 @@ def main(
             p.grad.data.mul_(1.0 / meta_batch_size)
         opt.step()
 
+        # # Print some metrics
+        # print('\n')
+        # print('Iteration', iteration)
+        # print('Meta Train Error', meta_train_error / meta_batch_size)
+        # print('Meta Train Accuracy', meta_train_accuracy / meta_batch_size)
+        # print('Meta Valid Error', meta_valid_error / meta_batch_size)
+        # print('Meta Valid Accuracy', meta_valid_accuracy / meta_batch_size)
+
         total_meta_train_error.append(meta_train_error / meta_batch_size)
         total_meta_train_accuracy.append(meta_train_accuracy / meta_batch_size)
         total_meta_valid_error.append(meta_valid_error / meta_batch_size)
@@ -157,21 +160,7 @@ def main(
         f.write('\n')
     f.close()
 
-    # -- Save model parameters #
-    # https://pytorch.org/tutorials/beginner/saving_loading_models.html
-    torch.save(model,"./maml_model_miniimagenet_tuplet0.pt")
 
-
-    # # Comment this section out if you do not want to use saved model!
-    # # Create model using saved parameters:
-    # model = TripletCNN4(output_size= ways, hidden_size=64, layers=4, channels=3, max_pool=True, embedding_size=1600)
-    # model = torch.load("./maml_model_miniimagenet_Tuplet05.pt")
-    # model.to(device)
-    # maml = l2l.algorithms.MAML(model, lr=fast_lr, first_order=True)
-    # #
-
-
-    # META TEST #
     total_meta_test_error = []
     total_meta_test_accuracy = []
 
@@ -179,25 +168,22 @@ def main(
         meta_test_error = 0.0
         meta_test_accuracy = 0.0
 
-        for task in range(meta_batch_size):
-            # Compute meta-testing loss
-            learner = maml.clone()
-            batch = triplet_imagenet_dataset.sample("test") 
-            evaluation_error, evaluation_accuracy = fast_adapt(batch,
-                                                            learner,
-                                                            combined_loss_fn,
-                                                            test_adaptation_steps,
-                                                            shots,
-                                                            ways,
-                                                            device)
-
-
-            meta_test_error += evaluation_error.item()
-            meta_test_accuracy += evaluation_accuracy.item()
-        
-        total_meta_test_error.append(meta_test_error / meta_batch_size)
-        total_meta_test_accuracy.append(meta_test_accuracy / meta_batch_size)
-        print(i, 'Test accuracy: ', str(meta_test_accuracy / meta_batch_size))
+        # Compute meta-testing loss
+        learner = maml.clone()
+        batch = triplet_imagenet_dataset.sample("test") 
+        evaluation_error, evaluation_accuracy = fast_adapt(batch,
+                                                           learner,
+                                                           combined_loss_fn,
+                                                           test_adaptation_steps,
+                                                           shots,
+                                                           ways,
+                                                           device)
+        meta_test_error += evaluation_error.item()
+        meta_test_accuracy += evaluation_accuracy.item()
+    
+        total_meta_test_error.append(meta_test_error)
+        total_meta_test_accuracy.append(meta_test_accuracy)
+        print(i, 'Test accuracy: ', str(meta_test_accuracy))
     
     total_meta_test_accuracy = np.array(total_meta_test_accuracy)
     mean = np.mean(total_meta_test_accuracy)
