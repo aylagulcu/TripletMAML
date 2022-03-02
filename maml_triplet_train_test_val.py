@@ -17,11 +17,11 @@ from cnn4_triplet import *
 from losses import *
 
 Triplet_Model_Parameter = {
-    "CIFARFS" : {"data" : TripletFSCIFAR100 , "root" : "./data", "download": True , "transform" : transforms.Compose([transforms.ToTensor()]), "hidden_size":64, "layers":4, "channels":3, "max_pool":True, "embedding_size":256,"margin":1.0,"lambda":0} ,
-    "CUB" : {"data" : TripletCUB , "root" : "./", "download": True , "transform" : transforms.Compose([transforms.ToTensor()]), "hidden_size":64, "layers":4, "channels":3, "max_pool":True, "embedding_size":1600,"margin":1.0,"lambda":0},
-    "FLOWERS" : {"data" : TripletFlowers , "root" : "./", "download": True , "transform" : transforms.Compose([transforms.ToTensor()]), "hidden_size":64, "layers":4, "channels":3, "max_pool":True, "embedding_size":1600,"margin":1.0,"lambda":0},
+    "CIFARFS" : {"data" : TripletFSCIFAR100 , "root" : "./data", "download": True , "transform" : transforms.Compose([transforms.ToTensor()]), "hidden_size":64, "layers":4, "channels":3, "max_pool":True, "embedding_size":256,"margin":1.0,"lambda":1} ,
+    "CUB" : {"data" : TripletCUB , "root" : "./", "download": True , "transform" : transforms.Compose([transforms.ToTensor()]), "hidden_size":64, "layers":4, "channels":3, "max_pool":True, "embedding_size":1600,"margin":1.0,"lambda":1},
+    "FLOWERS" : {"data" : TripletFlowers , "root" : "./", "download": True , "transform" : transforms.Compose([transforms.ToTensor()]), "hidden_size":64, "layers":4, "channels":3, "max_pool":True, "embedding_size":1600,"margin":1.0,"lambda":1},
     "MINIIMAGENET" : {"data" : TripletMiniImageNet , "root" : "~/data", "download": True , "transform" : transforms.Compose([transforms.ToTensor()]), "hidden_size":32, "layers":4, "channels":3, "max_pool":True, "embedding_size":800,"margin":1.0,"lambda":1},
-    "OMNIGLOT" : {"data" : TripletOmniglot , "root" : "~/data", "download": True , "transform" : transforms.Compose([transforms.ToTensor(),transforms.Resize((28,28))]), "hidden_size":64, "layers":4, "channels":1, "max_pool":False, "embedding_size":256,"margin":1.0,"lambda":1.5}
+    "OMNIGLOT" : {"data" : TripletOmniglot , "root" : "~/data", "download": True , "transform" : transforms.Compose([transforms.ToTensor(),transforms.Resize((28,28))]), "hidden_size":64, "layers":4, "channels":1, "max_pool":False, "embedding_size":256,"margin":1.0,"lambda":1}
 }
 
 print(torch.__version__)
@@ -30,7 +30,10 @@ print(torch.cuda.is_available())
 
 def accuracy(predictions, targets):
     predictions = predictions.argmax(dim=1).view(targets.shape)
-    return (predictions == targets).sum().float() / targets.size(0)
+    # return (predictions == targets).sum().float() / targets.size(0)
+
+    mask = np.array([True, False, False, False, False, False, False, False, True, True, True, True])
+    return (predictions[mask] == targets[mask]).sum().float() / targets[mask].size(0)
 
 
 def fast_adapt(batch, learner, loss, adaptation_steps, shots, ways, device):
@@ -72,7 +75,7 @@ def main(
         cuda=True,
         seed=42,
         num_test_episodes= 600,
-        selected_model = "CIFARFS"
+        selected_model = "MINIIMAGENET"
 ):
 
     random.seed(seed)
@@ -94,8 +97,8 @@ def main(
     maml = l2l.algorithms.MAML(model, lr=fast_lr, first_order=True)
     opt = optim.Adam(maml.parameters(), meta_lr) # meta-update
      
-    margin= Triplet_Model_Parameter[selected_model]["margin"]
-    combined_loss_fn= CombinedLoss(margin)
+    triplet_w= Triplet_Model_Parameter[selected_model]["lambda"]
+    combined_loss_fn= CombinedLoss2(triplet_w)
 
     total_meta_train_error = []
     total_meta_train_accuracy = []
@@ -230,4 +233,4 @@ if __name__ == '__main__':
     #FLOWERS
     #MINIIMAGENET
     #OMNIGLOT
-    main(shots=5,selected_model="CUB")
+    main(shots=1,selected_model="MINIIMAGENET")

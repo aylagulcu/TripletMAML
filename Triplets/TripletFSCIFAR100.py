@@ -89,7 +89,6 @@ class TripletFSCIFAR100(Dataset):
             # Mode change
             if type != self.mode:
                 self.mode = type
-                print("Mode Changed:", self.mode)
                 self.labels = list(self.data[type]['class_dict'].keys())
                 self.label_to_indices = self.data[type]['class_dict']
                 self.sample_data = self.data[type]["image_data"]
@@ -168,7 +167,6 @@ class TripletFSCIFAR100(Dataset):
             # Mode change
             if type != self.mode:
                 self.mode = type
-                print("Mode Changed:", self.mode)
                 self.labels = list(self.data[type]['class_dict'].keys())
                 self.label_to_indices = self.data[type]['class_dict']
                 self.sample_data = self.data[type]["image_data"]
