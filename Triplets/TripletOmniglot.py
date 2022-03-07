@@ -81,15 +81,15 @@ class TripletOmniglot(Dataset):
     
     def split_train_test_valid(self):
         np.random.shuffle(self.labels_set)
-        self.labels = {"train": [],  "valid": [], "test": []}
-        self.indexes = {"train": 0, "valid": 0, "test": 0}
+        self.labels = {"train": [],  "validation": [], "test": []}
+        self.indexes = {"train": 0, "validation": 0, "test": 0}
         
         total_labels = len(self.labels_set)
         total_train_labels = int(total_labels * 0.8)
         total_valid_labels = int(total_train_labels * 0.1)
 
         self.labels["train"] = self.labels_set[: total_train_labels]
-        self.labels["valid"] = self.labels["train"][-total_valid_labels: ]
+        self.labels["validation"] = self.labels["train"][-total_valid_labels: ]
         self.labels["train"] = self.labels["train"][: total_train_labels - total_valid_labels]   
         self.labels["test"] = self.labels_set[total_train_labels: ]
 

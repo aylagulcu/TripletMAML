@@ -17,11 +17,11 @@ from cnn4_triplet import *
 from losses import *
 
 Triplet_Model_Parameter = {
-    "CIFARFS" : {"data" : TripletFSCIFAR100 , "root" : "~/data", "download": True , "transform" : transforms.Compose([transforms.ToTensor()]), "hidden_size":64, "layers":4, "channels":3, "max_pool":True, "embedding_size":256,"margin":1.0,"lambda":1} ,
-    "CUB" : {"data" : TripletCUB , "root" : "./data", "download": True , "transform" : transforms.Compose([transforms.ToTensor()]), "hidden_size":64, "layers":4, "channels":3, "max_pool":True, "embedding_size":1600,"margin":1.0,"lambda":1},
-    "FLOWERS" : {"data" : TripletFlowers , "root" : "~/data", "download": True , "transform" : transforms.Compose([transforms.ToTensor()]), "hidden_size":64, "layers":4, "channels":3, "max_pool":True, "embedding_size":1600,"margin":1.0,"lambda":1},
-    "MINIIMAGENET" : {"data" : TripletMiniImageNet , "root" : "~/data", "download": True , "transform" : transforms.Compose([transforms.ToTensor()]), "hidden_size":32, "layers":4, "channels":3, "max_pool":True, "embedding_size":800,"margin":1.0,"lambda":1},
-    "OMNIGLOT" : {"data" : TripletOmniglot , "root" : "~/data", "download": True , "transform" : transforms.Compose([transforms.ToTensor(),transforms.Resize((28,28))]), "hidden_size":64, "layers":4, "channels":1, "max_pool":False, "embedding_size":256,"margin":1.0,"lambda":1}
+    "CIFARFS" : {"data" : TripletFSCIFAR100 , "root" : "~/data", "download": True , "transform" : transforms.Compose([transforms.ToTensor()]), "hidden_size":64, "layers":4, "channels":3, "max_pool":True, "embedding_size":256,"margin":1.0} ,
+    "CUB" : {"data" : TripletCUB , "root" : "./data", "download": True , "transform" : transforms.Compose([transforms.ToTensor()]), "hidden_size":64, "layers":4, "channels":3, "max_pool":True, "embedding_size":1600,"margin":1.0},
+    "FLOWERS" : {"data" : TripletFlowers , "root" : "~/data", "download": True , "transform" : transforms.Compose([transforms.ToTensor()]), "hidden_size":64, "layers":4, "channels":3, "max_pool":True, "embedding_size":1600,"margin":1.0},
+    "MINIIMAGENET" : {"data" : TripletMiniImageNet , "root" : "~/data", "download": True , "transform" : transforms.Compose([transforms.ToTensor()]), "hidden_size":32, "layers":4, "channels":3, "max_pool":True, "embedding_size":800,"margin":1.0},
+    "OMNIGLOT" : {"data" : TripletOmniglot , "root" : "~/data", "download": True , "transform" : transforms.Compose([transforms.ToTensor(),transforms.Resize((28,28))]), "hidden_size":64, "layers":4, "channels":1, "max_pool":False, "embedding_size":256,"margin":1.0}
 }
 
 print(torch.__version__)
@@ -73,10 +73,10 @@ def main(
         ways=5, # in our triplet implementation, number of distinct classes is 5
         shots=5,
         meta_lr=0.001, # as in MAML
-        fast_lr=0.01, # as in MAML
-        meta_batch_size=4, # Maml Omniglot:32; miniImageNet: 4 
-        adaptation_steps=5,
-        test_adaptation_steps=10,
+        fast_lr=0.4, # Maml Omniglot:0.4; miniImageNet: 0.01
+        meta_batch_size=32, # Maml Omniglot:32; miniImageNet: 4 
+        adaptation_steps=1, # Maml Omniglot:1; miniImageNet: 5 
+        test_adaptation_steps=3, # Maml Omniglot:3 ; miniImageNet: 10
         num_iterations= 60000, # as in MAML
         cuda=True,
         seed=42,
@@ -103,7 +103,7 @@ def main(
     maml = l2l.algorithms.MAML(model, lr=fast_lr, first_order=True)
     opt = optim.Adam(maml.parameters(), meta_lr) # meta-update
      
-    triplet_w= Triplet_Model_Parameter[selected_model]["lambda"]
+    triplet_w= 1.0
     combined_loss_fn= CombinedLoss2(triplet_w, shots)
 
     total_meta_train_error = []
@@ -113,7 +113,8 @@ def main(
 
 
     for iteration in range(num_iterations):
-        print('Iteration: ', iteration)
+        if iteration % 100 == 0: 
+            print('Iteration: ', iteration)
 
         opt.zero_grad() # for each batch, gradients should be cleaned.
         meta_train_error = 0.0
@@ -180,14 +181,17 @@ def main(
 
     #-- Save model parameters #
     #-- https://pytorch.org/tutorials/beginner/saving_loading_models.html
-    torch.save(model,"./maml_model_"+str(selected_model)+".pt")
+    # THIS IS NOT RECOMMENDED: torch.save(model,"./maml_model_"+str(selected_model)+".pt")
+    torch.save(model.state_dict(), "./maml_model_"+str(selected_model)+".pth")
+
 
     # Create model using saved parameters:
     model = TripletCNN4(output_size= ways, hidden_size=Triplet_Model_Parameter[selected_model]["hidden_size"], layers=Triplet_Model_Parameter[selected_model]["layers"], channels=Triplet_Model_Parameter[selected_model]["channels"], max_pool=Triplet_Model_Parameter[selected_model]["max_pool"], embedding_size=Triplet_Model_Parameter[selected_model]["embedding_size"])
 
-    model = torch.load("./maml_model_"+str(selected_model)+".pt")
-    model.to(device)
-    maml = l2l.algorithms.MAML(model, lr=fast_lr, first_order=True)
+    # THIS IS NOT RECOMMENDED: model = torch.load("./maml_model_"+str(selected_model)+".pt")
+    model.load_state_dict(torch.load("./maml_model_"+str(selected_model)+".pth"))
+    # model.to(device)
+    # maml = l2l.algorithms.MAML(model, lr=fast_lr, first_order=True)
 
     total_meta_test_error = []
     total_meta_test_accuracy = []
@@ -239,4 +243,4 @@ if __name__ == '__main__':
     #FLOWERS
     #MINIIMAGENET
     #OMNIGLOT
-    main(shots=5,selected_model="CUB")
+    main(shots=1,selected_model="OMNIGLOT")
