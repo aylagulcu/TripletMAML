@@ -28,7 +28,7 @@ class TripletNoMarginLoss(nn.Module):
         super(TripletNoMarginLoss, self).__init__()
 
     def forward(self, anchor, positive, negative): # anchor, positive, negative shape [batch_size, emb_size]; cls_probas shape [batch_size*3, 5(num_cls)]; target shape [batch_size*3]
-        loss_triplet= torch.log(1+ torch.exp(torch.cosine_similarity(anchor,negative)-torch.cosine_similarity(anchor, negative)))
+        loss_triplet= torch.log(1+ torch.exp(torch.cosine_similarity(anchor,negative)-torch.cosine_similarity(anchor, positive)))
         return torch.mean(loss_triplet)
 
 
