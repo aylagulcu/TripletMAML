@@ -13,7 +13,7 @@ from torch import nn, optim
 
 import learn2learn as l2l
 from Triplets import *
-from cnn4_triplet import *
+from backbone import *
 from losses import *
 
 Triplet_Model_Parameter = {
@@ -71,7 +71,7 @@ def fast_adapt(batch, learner, loss, adaptation_steps, shots, ways, device):
 
 def main(
         ways=5, # in our triplet implementation, number of distinct classes is 5
-        shots=5,
+        shots=1,
         meta_lr=0.001, # as in MAML
         fast_lr=0.4, # Maml Omniglot:0.4; miniImageNet: 0.01
         meta_batch_size=32, # Maml Omniglot:32; miniImageNet: 4 
@@ -103,8 +103,7 @@ def main(
     maml = l2l.algorithms.MAML(model, lr=fast_lr, first_order=True)
     opt = optim.Adam(maml.parameters(), meta_lr) # meta-update
      
-    triplet_w= 1.0
-    combined_loss_fn= CombinedLoss2(triplet_w, shots)
+    combined_loss_fn= CombinedLoss(shots, lamda= 0) # lamda: metric loss weight
 
     total_meta_train_error = []
     total_meta_train_accuracy = []
@@ -114,7 +113,7 @@ def main(
 
     for iteration in range(num_iterations):
         if iteration % 100 == 0: 
-            print('Iteration: ', iteration)
+            print('Iteration: ', iteration)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 
 
         opt.zero_grad() # for each batch, gradients should be cleaned.
         meta_train_error = 0.0
@@ -180,15 +179,11 @@ def main(
     # f.close()
 
     #-- Save model parameters #
-    #-- https://pytorch.org/tutorials/beginner/saving_loading_models.html
-    # THIS IS NOT RECOMMENDED: torch.save(model,"./maml_model_"+str(selected_model)+".pt")
     torch.save(model.state_dict(), "./maml_model_"+str(selected_model)+".pth")
 
 
     # Create model using saved parameters:
     model = TripletCNN4(output_size= ways, hidden_size=Triplet_Model_Parameter[selected_model]["hidden_size"], layers=Triplet_Model_Parameter[selected_model]["layers"], channels=Triplet_Model_Parameter[selected_model]["channels"], max_pool=Triplet_Model_Parameter[selected_model]["max_pool"], embedding_size=Triplet_Model_Parameter[selected_model]["embedding_size"])
-
-    # THIS IS NOT RECOMMENDED: model = torch.load("./maml_model_"+str(selected_model)+".pt")
     model.load_state_dict(torch.load("./maml_model_"+str(selected_model)+".pth"))
     # model.to(device)
     # maml = l2l.algorithms.MAML(model, lr=fast_lr, first_order=True)
@@ -225,15 +220,15 @@ def main(
     print('Average test accuracy: ', mean, '+/-', ci95)
 
     # write test results:
-    # f = open("result_test"+str(selected_model)+".csv", "w")
-    # f.write('\t'.join(('test_er',',', 'test_acc')))
-    # f.write('\n')
-    # for (test_er, test_acc) in zip(total_meta_test_error, total_meta_test_accuracy):
-    #     items= (str(test_er),',', str(test_acc))
-    #     f.write('\t'.join(items))
-    #     f.write('\n')
-    # f.write('\t'.join((str(mean),',', str(ci95))))
-    # f.close()
+    f = open("result_test"+str(selected_model)+".csv", "w")
+    f.write('\t'.join(('test_er',',', 'test_acc')))
+    f.write('\n')
+    for (test_er, test_acc) in zip(total_meta_test_error, total_meta_test_accuracy):
+        items= (str(test_er),',', str(test_acc))
+        f.write('\t'.join(items))
+        f.write('\n')
+    f.write('\t'.join((str(mean),',', str(ci95))))
+    f.close()
 
 
 if __name__ == '__main__':

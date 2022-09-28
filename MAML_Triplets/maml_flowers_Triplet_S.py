@@ -8,7 +8,7 @@ from torch import nn, optim
 
 import learn2learn as l2l
 from  Triplets import *
-from cnn4_triplet import *
+from backbone import *
 from losses import *
 
 print(torch.__version__)
