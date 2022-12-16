@@ -21,6 +21,8 @@ Triplet_Model_Parameter = {
     "CUB" : {"data" : TripletCUB , "root" : "./data", "download": True , "transform" : transforms.Compose([transforms.ToTensor()]), "hidden_size":64, "layers":4, "channels":3, "max_pool":True, "embedding_size":1600,"margin":1.0},
     "FLOWERS" : {"data" : TripletFlowers , "root" : "~/data", "download": True , "transform" : transforms.Compose([transforms.ToTensor()]), "hidden_size":64, "layers":4, "channels":3, "max_pool":True, "embedding_size":1600,"margin":1.0},
     "MINIIMAGENET" : {"data" : TripletMiniImageNet , "root" : "~/data", "download": True , "transform" : transforms.Compose([transforms.ToTensor()]), "hidden_size":32, "layers":4, "channels":3, "max_pool":True, "embedding_size":800,"margin":1.0},
+    # Following is for retrieval experiments: miniimagenet hidden size=64; so the embedding_size= 1600
+    "MINIIMAGENET_RetrievalTest" : {"data" : TripletMiniImageNet , "root" : "~/data", "download": True , "transform" : transforms.Compose([transforms.ToTensor()]), "hidden_size":64, "layers":4, "channels":3, "max_pool":True, "embedding_size":1600,"margin":1.0},
     "OMNIGLOT" : {"data" : TripletOmniglot , "root" : "~/data", "download": True , "transform" : transforms.Compose([transforms.ToTensor(),transforms.Resize((28,28))]), "hidden_size":64, "layers":4, "channels":1, "max_pool":False, "embedding_size":256,"margin":1.0}
 }
 
@@ -73,17 +75,17 @@ def main(
         ways=5, # in our triplet implementation, number of distinct classes is 5
         shots=1,
         meta_lr=0.001, # as in MAML
-        fast_lr=0.4, # Maml Omniglot:0.4; miniImageNet: 0.01
-        meta_batch_size=32, # Maml Omniglot:32; miniImageNet: 4 
-        adaptation_steps=1, # Maml Omniglot:1; miniImageNet: 5 
-        test_adaptation_steps=3, # Maml Omniglot:3 ; miniImageNet: 10
-        num_iterations= 60000, # as in MAML
+        fast_lr=0.01, 
+        meta_batch_size=2, # Maml Omniglot:32; miniImageNet: 4 (5-shot); 2 (1-shot)
+        adaptation_steps=5, # Maml Omniglot:1; miniImageNet: 5 
+        test_adaptation_steps=10, # Maml Omniglot:3 ; miniImageNet: 10
+        num_iterations= 1,#60000, # as in MAML
         cuda=True,
         seed=42,
         num_test_episodes= 600,
-        selected_model = "MINIIMAGENET"
+        selected_model = "MINIIMAGENET_RetrievalTest"
 ):
-
+ 
     random.seed(seed)
     np.random.seed(seed)
     torch.manual_seed(seed)
@@ -103,7 +105,7 @@ def main(
     maml = l2l.algorithms.MAML(model, lr=fast_lr, first_order=True)
     opt = optim.Adam(maml.parameters(), meta_lr) # meta-update
      
-    combined_loss_fn= CombinedLoss(shots, lamda= 0) # lamda: metric loss weight
+    combined_loss_fn= CombinedLoss(shots, lamda= 1) # lamda: metric loss weight
 
     total_meta_train_error = []
     total_meta_train_accuracy = []
@@ -136,18 +138,18 @@ def main(
             meta_train_error += evaluation_error.item()
             meta_train_accuracy += evaluation_accuracy.item()
 
-            # Compute meta-validation loss
-            learner = maml.clone()
-            batch = triplet_imagenet_dataset.sample("validation",shots)
-            evaluation_error, evaluation_accuracy = fast_adapt(batch,
-                                                               learner,
-                                                               combined_loss_fn,
-                                                               adaptation_steps,
-                                                               shots,
-                                                               ways,
-                                                               device)
-            meta_valid_error += evaluation_error.item()
-            meta_valid_accuracy += evaluation_accuracy.item()
+            # # Compute meta-validation loss
+            # learner = maml.clone()
+            # batch = triplet_imagenet_dataset.sample("validation",shots)
+            # evaluation_error, evaluation_accuracy = fast_adapt(batch,
+            #                                                    learner,
+            #                                                    combined_loss_fn,
+            #                                                    adaptation_steps,
+            #                                                    shots,
+            #                                                    ways,
+            #                                                    device)
+            # meta_valid_error += evaluation_error.item()
+            # meta_valid_accuracy += evaluation_accuracy.item()
 
 
         # Average the accumulated gradients and optimize
@@ -165,8 +167,8 @@ def main(
 
         total_meta_train_error.append(meta_train_error / meta_batch_size)
         total_meta_train_accuracy.append(meta_train_accuracy / meta_batch_size)
-        total_meta_valid_error.append(meta_valid_error / meta_batch_size)
-        total_meta_valid_accuracy.append(meta_valid_accuracy / meta_batch_size)
+        # total_meta_valid_error.append(meta_valid_error / meta_batch_size)
+        # total_meta_valid_accuracy.append(meta_valid_accuracy / meta_batch_size)
 
     # write training results:
     # f = open("result_train"+str(selected_model)+".csv", "w")
@@ -179,14 +181,15 @@ def main(
     # f.close()
 
     #-- Save model parameters #
-    torch.save(model.state_dict(), "./maml_model_"+str(selected_model)+".pth")
+    torch.save(model.state_dict(), "./maml_model_"+str(selected_model)+ str(shots) + "_shots.pt")
 
 
     # Create model using saved parameters:
     model = TripletCNN4(output_size= ways, hidden_size=Triplet_Model_Parameter[selected_model]["hidden_size"], layers=Triplet_Model_Parameter[selected_model]["layers"], channels=Triplet_Model_Parameter[selected_model]["channels"], max_pool=Triplet_Model_Parameter[selected_model]["max_pool"], embedding_size=Triplet_Model_Parameter[selected_model]["embedding_size"])
-    model.load_state_dict(torch.load("./maml_model_"+str(selected_model)+".pth"))
-    # model.to(device)
-    # maml = l2l.algorithms.MAML(model, lr=fast_lr, first_order=True)
+    model.load_state_dict(torch.load("./maml_model_"+str(selected_model)+ str(shots) + "_shots.pt"))
+
+    model.to(device)
+    maml = l2l.algorithms.MAML(model, lr=fast_lr, first_order=True)
 
     total_meta_test_error = []
     total_meta_test_accuracy = []
@@ -238,4 +241,4 @@ if __name__ == '__main__':
     #FLOWERS
     #MINIIMAGENET
     #OMNIGLOT
-    main(shots=1,selected_model="OMNIGLOT")
+    main(shots=1,selected_model="MINIIMAGENET_RetrievalTest")
