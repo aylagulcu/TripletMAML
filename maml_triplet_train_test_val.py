@@ -73,13 +73,13 @@ def fast_adapt(batch, learner, loss, adaptation_steps, shots, ways, device):
 
 def main(
         ways=5, # in our triplet implementation, number of distinct classes is 5
-        shots=1,
+        shots=5,
         meta_lr=0.001, # as in MAML
         fast_lr=0.01, 
-        meta_batch_size=2, # Maml Omniglot:32; miniImageNet: 4 (5-shot); 2 (1-shot)
+        meta_batch_size=4, # Maml miniImageNet: 2 (5-shot); 4 (1-shot)
         adaptation_steps=5, # Maml Omniglot:1; miniImageNet: 5 
         test_adaptation_steps=10, # Maml Omniglot:3 ; miniImageNet: 10
-        num_iterations= 1,#60000, # as in MAML
+        num_iterations= 60000, # as in MAML
         cuda=True,
         seed=42,
         num_test_episodes= 600,
@@ -138,18 +138,18 @@ def main(
             meta_train_error += evaluation_error.item()
             meta_train_accuracy += evaluation_accuracy.item()
 
-            # # Compute meta-validation loss
-            # learner = maml.clone()
-            # batch = triplet_imagenet_dataset.sample("validation",shots)
-            # evaluation_error, evaluation_accuracy = fast_adapt(batch,
-            #                                                    learner,
-            #                                                    combined_loss_fn,
-            #                                                    adaptation_steps,
-            #                                                    shots,
-            #                                                    ways,
-            #                                                    device)
-            # meta_valid_error += evaluation_error.item()
-            # meta_valid_accuracy += evaluation_accuracy.item()
+            # Compute meta-validation loss
+            learner = maml.clone()
+            batch = triplet_imagenet_dataset.sample("validation",shots)
+            evaluation_error, evaluation_accuracy = fast_adapt(batch,
+                                                               learner,
+                                                               combined_loss_fn,
+                                                               adaptation_steps,
+                                                               shots,
+                                                               ways,
+                                                               device)
+            meta_valid_error += evaluation_error.item()
+            meta_valid_accuracy += evaluation_accuracy.item()
 
 
         # Average the accumulated gradients and optimize
@@ -167,26 +167,26 @@ def main(
 
         total_meta_train_error.append(meta_train_error / meta_batch_size)
         total_meta_train_accuracy.append(meta_train_accuracy / meta_batch_size)
-        # total_meta_valid_error.append(meta_valid_error / meta_batch_size)
-        # total_meta_valid_accuracy.append(meta_valid_accuracy / meta_batch_size)
+        total_meta_valid_error.append(meta_valid_error / meta_batch_size)
+        total_meta_valid_accuracy.append(meta_valid_accuracy / meta_batch_size)
 
-    # write training results:
-    # f = open("result_train"+str(selected_model)+".csv", "w")
-    # f.write('\t'.join(('tr_er', 'val_er', 'tr_acc', 'val_acc')))
-    # f.write('\n')
-    # for (tr_er, val_er, tr_acc, val_acc) in zip(total_meta_train_error, total_meta_valid_error, total_meta_train_accuracy, total_meta_valid_accuracy):
-    #     items= (str(tr_er),',', str(val_er),',',  str(tr_acc),',',  str(val_acc))
-    #     f.write('\t'.join(items))
-    #     f.write('\n')
-    # f.close()
+    # write training/validation results:
+    f = open("./Tripletmaml_"+ str(selected_model)+"_batchsize"+ str(meta_batch_size)+ "_shots"+ str(shots) + "_result_train_valid.csv", "w")
+    f.write('\t'.join(('tr_er', 'val_er', 'tr_acc', 'val_acc')))
+    f.write('\n')
+    for (tr_er, val_er, tr_acc, val_acc) in zip(total_meta_train_error, total_meta_valid_error, total_meta_train_accuracy, total_meta_valid_accuracy):
+        items= (str(tr_er),',', str(val_er),',',  str(tr_acc),',',  str(val_acc))
+        f.write('\t'.join(items))
+        f.write('\n')
+    f.close()
 
     #-- Save model parameters #
-    torch.save(model.state_dict(), "./maml_model_"+str(selected_model)+ str(shots) + "_shots.pt")
+    torch.save(model.state_dict(), "./Tripletmaml_"+str(selected_model)+ "_batchsize"+ str(meta_batch_size)+ "_shots"+ str(shots) + ".pt")
 
 
     # Create model using saved parameters:
     model = TripletCNN4(output_size= ways, hidden_size=Triplet_Model_Parameter[selected_model]["hidden_size"], layers=Triplet_Model_Parameter[selected_model]["layers"], channels=Triplet_Model_Parameter[selected_model]["channels"], max_pool=Triplet_Model_Parameter[selected_model]["max_pool"], embedding_size=Triplet_Model_Parameter[selected_model]["embedding_size"])
-    model.load_state_dict(torch.load("./maml_model_"+str(selected_model)+ str(shots) + "_shots.pt"))
+    model.load_state_dict(torch.load("./Tripletmaml_"+str(selected_model)+ "_batchsize"+ str(meta_batch_size)+ "_shots"+ str(shots) + ".pt"))
 
     model.to(device)
     maml = l2l.algorithms.MAML(model, lr=fast_lr, first_order=True)
@@ -222,16 +222,16 @@ def main(
     
     print('Average test accuracy: ', mean, '+/-', ci95)
 
-    # write test results:
-    f = open("result_test"+str(selected_model)+".csv", "w")
-    f.write('\t'.join(('test_er',',', 'test_acc')))
-    f.write('\n')
-    for (test_er, test_acc) in zip(total_meta_test_error, total_meta_test_accuracy):
-        items= (str(test_er),',', str(test_acc))
-        f.write('\t'.join(items))
-        f.write('\n')
-    f.write('\t'.join((str(mean),',', str(ci95))))
-    f.close()
+    # # write test results:
+    # f = open("result_test"+str(selected_model)+".csv", "w")
+    # f.write('\t'.join(('test_er',',', 'test_acc')))
+    # f.write('\n')
+    # for (test_er, test_acc) in zip(total_meta_test_error, total_meta_test_accuracy):
+    #     items= (str(test_er),',', str(test_acc))
+    #     f.write('\t'.join(items))
+    #     f.write('\n')
+    # f.write('\t'.join((str(mean),',', str(ci95))))
+    # f.close()
 
 
 if __name__ == '__main__':
@@ -241,4 +241,4 @@ if __name__ == '__main__':
     #FLOWERS
     #MINIIMAGENET
     #OMNIGLOT
-    main(shots=1,selected_model="MINIIMAGENET_RetrievalTest")
+    main(selected_model="MINIIMAGENET_RetrievalTest")
