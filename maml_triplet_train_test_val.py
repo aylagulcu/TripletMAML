@@ -75,15 +75,15 @@ def main(
         ways=5, # in our triplet implementation, number of distinct classes is 5
         shots=5,
         meta_lr=0.001, # as in MAML
-        fast_lr=0.01, 
-        meta_batch_size=4, # Maml miniImageNet: 2 (5-shot); 4 (1-shot)
-        adaptation_steps=5, # Maml Omniglot:1; miniImageNet: 5 
-        test_adaptation_steps=10, # Maml Omniglot:3 ; miniImageNet: 10
+        fast_lr=0.4, 
+        meta_batch_size=32, # Maml miniImageNet: 2 (5-shot); 4 (1-shot)
+        adaptation_steps=1, # Maml Omniglot:1; miniImageNet: 5 
+        test_adaptation_steps=3, # Maml Omniglot:3 ; miniImageNet: 10
         num_iterations= 60000, # as in MAML
         cuda=True,
         seed=42,
         num_test_episodes= 600,
-        selected_model = "MINIIMAGENET_RetrievalTest"
+        selected_model = "OMNIGLOT"
 ):
  
     random.seed(seed)
@@ -112,6 +112,7 @@ def main(
     total_meta_valid_error = []
     total_meta_valid_accuracy = []
 
+    valid_loss_min = np.Inf # track change in validation loss   
 
     for iteration in range(num_iterations):
         if iteration % 100 == 0: 
@@ -170,6 +171,14 @@ def main(
         total_meta_valid_error.append(meta_valid_error / meta_batch_size)
         total_meta_valid_accuracy.append(meta_valid_accuracy / meta_batch_size)
 
+
+        # save model if validation loss has decreased
+        if meta_valid_error <= valid_loss_min:
+            #-- Save model parameters #
+            torch.save(model.state_dict(), "./Tripletmaml_"+str(selected_model)+ "_batchsize"+ str(meta_batch_size)+ "_shots"+ str(shots) + ".pt")
+
+            valid_loss_min = meta_valid_error
+
     # write training/validation results:
     f = open("./Tripletmaml_"+ str(selected_model)+"_batchsize"+ str(meta_batch_size)+ "_shots"+ str(shots) + "_result_train_valid.csv", "w")
     f.write('\t'.join(('tr_er', 'val_er', 'tr_acc', 'val_acc')))
@@ -180,8 +189,6 @@ def main(
         f.write('\n')
     f.close()
 
-    #-- Save model parameters #
-    torch.save(model.state_dict(), "./Tripletmaml_"+str(selected_model)+ "_batchsize"+ str(meta_batch_size)+ "_shots"+ str(shots) + ".pt")
 
 
     # Create model using saved parameters:
@@ -241,4 +248,4 @@ if __name__ == '__main__':
     #FLOWERS
     #MINIIMAGENET
     #OMNIGLOT
-    main(selected_model="MINIIMAGENET_RetrievalTest")
+    main(selected_model="OMNIGLOT")

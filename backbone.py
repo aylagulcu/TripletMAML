@@ -244,7 +244,7 @@ class CNN4Backbone(ConvBase):
         )
 
     def forward(self, x):
-        x = super(CNN4Backbone, self).forward(x)
+        x = super(CNN4Backbone, self).forward(x) # 31 dec 2022: x.shape[4,64, 5,5]
         x = x.reshape(x.size(0), -1)
         return x
 
@@ -344,6 +344,11 @@ class TripletCNN4(torch.nn.Module):
         maml_init_(self.classifier)
         self.hidden_size = hidden_size
 
+    def forward_once(self, x1):
+        x1 = self.features(x1) # Omniglot input [1, 28, 28])
+        x1_clsprob = self.classifier(x1) 
+        
+        return x1,x1_clsprob # embeddings and class probabilities
 
     def forward(self, x1,x2,x3):
         x1 = self.features(x1) # Omniglot input [1, 28, 28])

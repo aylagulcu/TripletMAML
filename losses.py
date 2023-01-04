@@ -14,6 +14,7 @@ class TwoPlus1TupletLoss(nn.Module):
         super(TwoPlus1TupletLoss, self).__init__()
 
     def forward(self, anchor, positive, negative): 
+        # when euclidean distance is used, this formula should be modified!
         loss_tuplet= torch.log(1+ torch.exp(torch.cosine_similarity(anchor,negative)-torch.cosine_similarity(anchor, positive)))
         return torch.mean(loss_tuplet)
 
