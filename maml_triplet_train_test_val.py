@@ -22,8 +22,8 @@ Triplet_Model_Parameter = {
     "FLOWERS" : {"data" : TripletFlowers , "root" : "~/data", "download": True , "transform" : transforms.Compose([transforms.ToTensor()]), "hidden_size":64, "layers":4, "channels":3, "max_pool":True, "embedding_size":1600,"margin":1.0},
     "MINIIMAGENET" : {"data" : TripletMiniImageNet , "root" : "~/data", "download": True , "transform" : transforms.Compose([transforms.ToTensor()]), "hidden_size":32, "layers":4, "channels":3, "max_pool":True, "embedding_size":800,"margin":1.0},
     # Following is for retrieval experiments: miniimagenet hidden size=64; so the embedding_size= 1600
-    "MINIIMAGENET_RetrievalTest" : {"data" : TripletMiniImageNet , "root" : "~/data", "download": True , "transform" : transforms.Compose([transforms.ToTensor()]), "hidden_size":64, "layers":4, "channels":3, "max_pool":True, "embedding_size":1600,"margin":1.0},
-    "OMNIGLOT" : {"data" : TripletOmniglot , "root" : "~/data", "download": True , "transform" : transforms.Compose([transforms.ToTensor(),transforms.Resize((28,28))]), "hidden_size":64, "layers":4, "channels":1, "max_pool":False, "embedding_size":256,"margin":1.0}
+     "MINIIMAGENET_64": {"data": TripletMiniImageNet, "root": "~/data", "download": True, "transform": transforms.Compose([transforms.ToTensor()]), "hidden_size": 64, "layers": 4, "channels": 3, "max_pool": True, "embedding_size": 1600, "margin": 1.0},
+     "OMNIGLOT" : {"data" : TripletOmniglot , "root" : "~/data", "download": True , "transform" : transforms.Compose([transforms.ToTensor(),transforms.Resize((28,28))]), "hidden_size":64, "layers":4, "channels":1, "max_pool":False, "embedding_size":256,"margin":1.0}
 }
 
 print(torch.__version__)
@@ -75,17 +75,18 @@ def main(
         ways=5, # in our triplet implementation, number of distinct classes is 5
         shots=5,
         meta_lr=0.001, # as in MAML
-        fast_lr=0.4, 
-        meta_batch_size=32, # Maml miniImageNet: 2 (5-shot); 4 (1-shot)
-        adaptation_steps=1, # Maml Omniglot:1; miniImageNet: 5 
-        test_adaptation_steps=3, # Maml Omniglot:3 ; miniImageNet: 10
-        num_iterations= 60000, # as in MAML
+        fast_lr=0.01, #Omniglot: 0.4, 
+        meta_batch_size=4, # Maml miniImageNet: 2 (5-shot); 4 (1-shot)
+        adaptation_steps=5, # Maml Omniglot:1; miniImageNet: 5 
+        test_adaptation_steps=10, # Maml Omniglot:3 ; miniImageNet: 10
+        num_iterations= 100000, 
         cuda=True,
         seed=42,
         num_test_episodes= 600,
-        selected_model = "OMNIGLOT"
+        selected_model = "MINIIMAGENET_64"
 ):
  
+    PATH= "./Tripletmaml_"+str(selected_model)+ "_batchsize"+ str(meta_batch_size)+ "_shots"+ str(shots) + "_with_optimizer.pt"
     random.seed(seed)
     np.random.seed(seed)
     torch.manual_seed(seed)
@@ -104,7 +105,7 @@ def main(
     model.to(device)
     maml = l2l.algorithms.MAML(model, lr=fast_lr, first_order=True)
     opt = optim.Adam(maml.parameters(), meta_lr) # meta-update
-     
+
     combined_loss_fn= CombinedLoss(shots, lamda= 1) # lamda: metric loss weight
 
     total_meta_train_error = []
@@ -175,12 +176,16 @@ def main(
         # save model if validation loss has decreased
         if meta_valid_error <= valid_loss_min:
             #-- Save model parameters #
-            torch.save(model.state_dict(), "./Tripletmaml_"+str(selected_model)+ "_batchsize"+ str(meta_batch_size)+ "_shots"+ str(shots) + ".pt")
-
+            torch.save({
+                'epoch': iteration,
+                'model_state_dict': model.state_dict(),
+                'optimizer_state_dict': opt.state_dict()
+                }, PATH)
             valid_loss_min = meta_valid_error
 
+
     # write training/validation results:
-    f = open("./Tripletmaml_"+ str(selected_model)+"_batchsize"+ str(meta_batch_size)+ "_shots"+ str(shots) + "_result_train_valid.csv", "w")
+    f = open("./Tripletmaml_"+ str(selected_model)+"_batchsize"+ str(meta_batch_size)+ "_shots"+ str(shots) + "_result_train_valid_with_optimizer.csv", "w")
     f.write('\t'.join(('tr_er', 'val_er', 'tr_acc', 'val_acc')))
     f.write('\n')
     for (tr_er, val_er, tr_acc, val_acc) in zip(total_meta_train_error, total_meta_valid_error, total_meta_train_accuracy, total_meta_valid_accuracy):
@@ -189,15 +194,16 @@ def main(
         f.write('\n')
     f.close()
 
-
-
     # Create model using saved parameters:
     model = TripletCNN4(output_size= ways, hidden_size=Triplet_Model_Parameter[selected_model]["hidden_size"], layers=Triplet_Model_Parameter[selected_model]["layers"], channels=Triplet_Model_Parameter[selected_model]["channels"], max_pool=Triplet_Model_Parameter[selected_model]["max_pool"], embedding_size=Triplet_Model_Parameter[selected_model]["embedding_size"])
-    model.load_state_dict(torch.load("./Tripletmaml_"+str(selected_model)+ "_batchsize"+ str(meta_batch_size)+ "_shots"+ str(shots) + ".pt"))
-
     model.to(device)
     maml = l2l.algorithms.MAML(model, lr=fast_lr, first_order=True)
-
+    opt = optim.Adam(maml.parameters(), meta_lr) # meta-update
+ 
+    checkpoint = torch.load(PATH)
+    model.load_state_dict(checkpoint['model_state_dict'])
+    opt.load_state_dict(checkpoint['optimizer_state_dict'])
+  
     total_meta_test_error = []
     total_meta_test_accuracy = []
 
@@ -248,4 +254,4 @@ if __name__ == '__main__':
     #FLOWERS
     #MINIIMAGENET
     #OMNIGLOT
-    main(selected_model="OMNIGLOT")
+    main(selected_model="MINIIMAGENET_64")
