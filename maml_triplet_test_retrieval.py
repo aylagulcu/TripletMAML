@@ -16,6 +16,7 @@ import learn2learn as l2l
 from Triplets import *
 from backbone import *
 from losses import *
+from utils import *
 
 Triplet_Model_Parameter = {
     "CIFARFS": {"data": TripletFSCIFAR100, "root": "~/data", "download": True, "transform": transforms.Compose([transforms.ToTensor()]), "hidden_size": 64, "layers": 4, "channels": 3, "max_pool": True, "embedding_size": 256, "margin": 1.0},
@@ -97,112 +98,6 @@ def fast_adapt_image_retrieval(batch, learner, loss, adaptation_steps, shots, wa
     return train_error, train_error
 
 
-def precision_at_k(y_true, y_pred, k=12):
-    """ Computes Precision at k for one sample
-
-    Parameters
-    __________
-    y_true: np.array
-            Array of correct recommendations (Order doesn't matter)
-    y_pred: np.array
-            Array of predicted recommendations (Order does matter)
-    k: int, optional
-       Maximum number of predicted recommendations
-
-    Returns
-    _______
-    score: double
-           Precision at k
-    """
-    intersection = np.intersect1d(y_true, y_pred[:k])
-    return len(intersection) / k
-
-
-def rel_at_k(y_true, y_pred, k=12):
-    """ Computes Relevance at k for one sample
-
-    Parameters
-    __________
-    y_true: np.array
-            Array of correct recommendations (Order doesn't matter)
-    y_pred: np.array
-            Array of predicted recommendations (Order does matter)
-    k: int, optional
-       Maximum number of predicted recommendations
-
-    Returns
-    _______
-    score: double
-           Relevance at k
-    """
-    if y_pred[k-1] in y_true:
-        return 1
-    else:
-        return 0
-
-
-def average_precision_at_k(y_true, y_pred, k=12):
-    """ Computes Average Precision at k for one sample
-
-    Parameters
-    __________
-    y_true: np.array
-            Array of correct recommendations (Order doesn't matter)
-    y_pred: np.array
-            Array of predicted recommendations (Order does matter)
-    k: int, optional
-       Maximum number of predicted recommendations
-
-    Returns
-    _______
-    score: double
-           Average Precision at k
-    """
-    ap = 0.0
-    rel_counter = 0
-    for i in range(1, k+1):
-        ap += precision_at_k(y_true, y_pred, i) * rel_at_k(y_true, y_pred, i)
-        rel_counter += rel_at_k(y_true, y_pred, i)
-    # return ap / min(k, len(y_true))
-    if rel_counter == 0:
-        return 0
-    return ap / rel_counter
-
-
-def mean_average_precision(y_true, y_pred, k=12):
-    """ Computes MAP at k
-
-    Parameters
-    __________
-    y_true: np.array
-            2D Array of correct recommendations (Order doesn't matter)
-    y_pred: np.array
-            2D Array of predicted recommendations (Order does matter)
-    k: int, optional
-       Maximum number of predicted recommendations
-
-    Returns
-    _______
-    score: double
-           MAP at k
-    """
-
-    return np.mean([average_precision_at_k(gt, pred, k)
-                    for gt, pred in zip(y_true, y_pred)])
-
-
-def mAP_at_k(D, imgLab, gt, rank=1, posonly="False"):
-
-    _, idx = D.topk(rank[-1],  dim=1 )
-    preds = np.array([imgLab[i].numpy() for i in idx])
-
-    if posonly == "True":
-        return mean_average_precision(gt[:10],preds[:10], k= rank[-1]),idx
-    elif posonly == "divide_by_class" : 
-        return [mean_average_precision(gt[:10],preds[:10], k= rank[-1]),mean_average_precision(gt[10:20],preds[10:20], k= rank[-1]),mean_average_precision(gt[20:30],preds[20:30], k= rank[-1]),mean_average_precision(gt[30:40],preds[30:40], k= rank[-1]),mean_average_precision(gt[40:50],preds[40:50], k= rank[-1]),mean_average_precision(gt,preds, k= rank[-1])],idx
-    else :
-        return mean_average_precision(gt, preds, k= rank[-1]), idx
-
 def createSimilarityMatrix(Fvec):
     nbr_images = Fvec.shape[0]
 
@@ -214,8 +109,6 @@ def createSimilarityMatrix(Fvec):
     M[torch.eye(nbr_images).bool()] = -1
     # torch.eye: Returns a 2-D tensor with ones on the diagonal and zeros elsewhere.
     return M
-
-
 
 
 def draw_support(batch,save_as):
@@ -295,7 +188,7 @@ def generate_ground_truth(labels , k ):
 
 def main(
         ways=5,  # in our triplet implementation, number of distinct classes is 5
-        shots=1, #retrieval shot is 1
+        shots=1, #retrieval shot is always 1
         meta_lr=0.001,  # as in MAML
         fast_lr=0.01,
         meta_batch_size=4,  # Maml miniImageNet: 2 (5-shot); 4 (1-shot)
@@ -308,7 +201,7 @@ def main(
         selected_model="MINIIMAGENET_64"
 ):
 
-    PATH= "./Tripletmaml_"+str(selected_model)+ "_batchsize"+ str(meta_batch_size)+ "_shots5_with_optimizer.pt"
+    PATH= "./Tripletmaml_"+str(selected_model)+ "_batchsize"+ str(meta_batch_size)+ "_shots1_with_optimizer.pt"
     random.seed(seed)
     np.random.seed(seed)
     torch.manual_seed(seed)
@@ -327,6 +220,7 @@ def main(
     maml = l2l.algorithms.MAML(model, lr=fast_lr, first_order=True)
     opt = optim.Adam(maml.parameters(), meta_lr) # meta-update
  
+ 
     checkpoint = torch.load(PATH)
     model.load_state_dict(checkpoint['model_state_dict'])
     opt.load_state_dict(checkpoint['optimizer_state_dict'])
@@ -335,7 +229,7 @@ def main(
 
     nbr_samples_per_class= 3
     nbr_iterations= 1
-    for k in [1,9]:
+    for k in [9]:
         mean_map = []
         with open("64_imagenet_all_"+ str(nbr_iterations)+"iter_dividebyclass_MAP"+str(k)+".txt", "w") as file:
             for i in range(nbr_iterations):

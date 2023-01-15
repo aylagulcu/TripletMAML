@@ -73,13 +73,13 @@ def fast_adapt(batch, learner, loss, adaptation_steps, shots, ways, device):
 
 def main(
         ways=5, # in our triplet implementation, number of distinct classes is 5
-        shots=5,
+        shots=1,
         meta_lr=0.001, # as in MAML
         fast_lr=0.01, #Omniglot: 0.4, 
         meta_batch_size=4, # Maml miniImageNet: 2 (5-shot); 4 (1-shot)
         adaptation_steps=5, # Maml Omniglot:1; miniImageNet: 5 
         test_adaptation_steps=10, # Maml Omniglot:3 ; miniImageNet: 10
-        num_iterations= 100000, 
+        num_iterations= 60000, 
         cuda=True,
         seed=42,
         num_test_episodes= 600,
@@ -185,7 +185,7 @@ def main(
 
 
     # write training/validation results:
-    f = open("./Tripletmaml_"+ str(selected_model)+"_batchsize"+ str(meta_batch_size)+ "_shots"+ str(shots) + "_result_train_valid_with_optimizer.csv", "w")
+    f = open("./Tripletmaml_"+ str(selected_model)+"_batchsize"+ str(meta_batch_size)+ "_shots"+ str(shots) + "_with_optimizer.csv", "w")
     f.write('\t'.join(('tr_er', 'val_er', 'tr_acc', 'val_acc')))
     f.write('\n')
     for (tr_er, val_er, tr_acc, val_acc) in zip(total_meta_train_error, total_meta_valid_error, total_meta_train_accuracy, total_meta_valid_accuracy):
