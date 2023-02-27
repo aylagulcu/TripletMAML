@@ -1,117 +1,45 @@
-# Meta-Learning & Computer Vision
+# TripletMAML: A metric-based model-agnostic meta-learning algorithm for few-shot classification
 
-This directory contains meta-learning examples and reproductions for common computer vision benchmarks.
+Implementation based on learn2learn meta-learning library: https://github.com/learnables/learn2learn
 
-## MAML
+This repository includes codes for a new algorithm called TripletMAML which extends the Model-Agnostic Meta-Learning (MAML) algorithm from a metric-learning perspective. The same optimization procedure of MAML is adopted, but the neural network model is replaced with a triplet network which enables the utilization of metric-learning through the embeddings.
 
-The following files reproduce [MAML](https://arxiv.org/pdf/1703.03400.pdf) on the Omniglot and *mini*-ImageNet datasets.
-The FOMAML results can be obtained by setting `first_order=True` in the `MAML` wrapper.
-On Omniglot, the CNN results can be obtained by swapping `OmniglotFC` with `OmniglotCNN`.
+## TripletMAML
 
-* [maml_omniglot.py](https://github.com/learnables/learn2learn/blob/master/examples/vision/maml_omniglot.py) - MAML on the Omniglot dataset with a fully-connected network.
-* [maml_miniimagenet.py](https://github.com/learnables/learn2learn/blob/master/examples/vision/maml_miniimagenet.py) - MAML on the *mini*-ImageNet dataset with the standard convolutional network.
+In our TripletMAML implementation, we adopted the shallow four-block CNN (CNN-4) architecture of MAML (Finn et al., 2017) which consists of four blocks, each comprising a 64-filter
+3 × 3 convolution, a batch normalization layer, a ReLU nonlinearity and a 2 × 2 max-pooling layer. Also, we have modified the final layer to consider both metric loss and classification loss. 
 
-Note that the original MAML paper trains with 5 fast adaptation step, but tests with 10 steps.
-This implementation only provides the training code.
+Use "tripletmaml_train_test_val.py" to train TripletMAML using one of the predefined models. 
+
+In order to set the hyper-parameter values of TripletMAML for different benchmark datasets, we made use of the literature studies that provide an extension to MAML and use the same
+CNN-4 backbone. These hyper-parameters are: 
+
+Triplet_Model_Parameter = {
+    "OMNIGLOT" : {"data" : TripletOmniglot , "root" : "~/data", "download": True , "transform" : transforms.Compose([transforms.ToTensor(),transforms.Resize((28,28))]), "hidden_size":64, "layers":4, "channels":1, "max_pool":False, "embedding_size":256,"margin":1.0}, 
+    "CIFARFS" : {"data" : TripletFSCIFAR100 , "root" : "~/data", "download": True , "transform" : transforms.Compose([transforms.ToTensor()]), "hidden_size":64, "layers":4, "channels":3, "max_pool":True, "embedding_size":256,"margin":1.0} ,
+    "CUB" : {"data" : TripletCUB , "root" : "./data", "download": True , "transform" : transforms.Compose([transforms.ToTensor()]), "hidden_size":64, "layers":4, "channels":3, "max_pool":True, "embedding_size":1600,"margin":1.0},
+    "FLOWERS" : {"data" : TripletFlowers , "root" : "~/data", "download": True , "transform" : transforms.Compose([transforms.ToTensor()]), "hidden_size":64, "layers":4, "channels":3, "max_pool":True, "embedding_size":1600,"margin":1.0},
+    "MINIIMAGENET" : {"data" : TripletMiniImageNet , "root" : "~/data", "download": True , "transform" : transforms.Compose([transforms.ToTensor()]), "hidden_size":32, "layers":4, "channels":3, "max_pool":True, "embedding_size":800,"margin":1.0},
+    }
 
 **Results**
 
-When adapting the code to different datasets, we obtained the following results.
-Only the fast-adaptation learning rate needs a bit of tuning, and good values usually lie in a 0.5-2x range of the original value.
+We have evaluated the performance of TripletMAML on four benchmark datasets and compared its performence to several meta-learning algorithms like Matching Networks (Matching Nets) (Vinyals
+et al., 2016), Prototypical Networks (ProtoNet) (Snell et al., 2017), and Relation Networks (Relation Nets)(Sung et al., 2018), and a baseline method (Chen et al., 2019) in addition to MAML (Finn et al., 2017). Here are the results:
 
-| Dataset       | Architecture | Ways | Shots | Original | learn2learn |
+<!-- | Dataset       | Architecture | Ways | Shots | Original | learn2learn |
 |---------------|--------------|------|-------|----------|-------------|
 | Omniglot      | FC           | 5    | 1     | 89.7%    | 88.9%       |
 | Omniglot      | CNN          | 5    | 1     | 98.7%    | 99.1%       |
 | mini-ImageNet | CNN          | 5    | 1     | 48.7%    | 48.3%       |
 | mini-ImageNet | CNN          | 5    | 5     | 63.1%    | 65.4%       |
 | CIFAR-FS      | CNN          | 5    | 5     | 71.5%    | 73.6%       |
-| FC100         | CNN          | 5    | 5     | n/a      | 49.0%       |
+| FC100         | CNN          | 5    | 5     | n/a      | 49.0%       | -->
 
-**Usage**
+![Screenshot](table_classification1.png)
+![Screenshot](table_classification2.png)
 
-Manually edit the respective files and run:
+## Triplet Generation Scheme:
 
-~~~shell
-python examples/vision/maml_omniglot.py
-~~~
-
-or
-
-~~~shell
-python examples/vision/maml_miniimagenet.py
-~~~
-
-## Prototypical Networks
-
-The file [protonet_miniimagenet.py](https://github.com/learnables/learn2learn/blob/master/examples/vision/protonet_miniimagenet.py) reproduces [Prototypical Networks](https://arxiv.org/pdf/1703.05175.pdf) on the *mini*-ImageNet dataset.
-
-This implementation provides training and testing code.
-
-**Results**
-
-| Dataset       | Architecture | Ways | Shots | Original | learn2learn |
-|---------------|--------------|------|-------|----------|-------------|
-| mini-ImageNet | CNN          | 5    | 1     | 49.4%    | 49.1%       |
-| mini-ImageNet | CNN          | 5    | 5     | 68.2%    | 66.5%       |
-
-
-**Usage**
-
-For 1 shot 5 ways:
-
-~~~shell
-python examples/vision/protonet_miniimagenet.py
-~~~
-
-For 5 shot 5 ways:
-
-~~~shell
-python examples/vision/protonet_miniimagenet.py --shot 5 --train-way 20
-~~~
-
-## ANIL
-
-The file [anil_fc100.py](https://github.com/learnables/learn2learn/blob/master/examples/vision/anil_fc100.py) implements [ANIL](https://arxiv.org/pdf/1909.09157.pdf) on the FC100 dataset.
-
-**Results**
-
-While ANIL only used *mini*-ImageNet as a benchmark, we provide results for CIFAR-FS and FC100 as well.
-
-| Dataset       | Architecture | Ways | Shots | Original | learn2learn |
-|---------------|--------------|------|-------|----------|-------------|
-| mini-ImageNet | CNN          | 5    | 5     | 61.5%    | 63.2%       |
-| CIFAR-FS      | CNN          | 5    | 5     | n/a      | 68.3%       |
-| FC100         | CNN          | 5    | 5     | n/a      | 47.6%       |
-
-
-**Usage**
-
-Manually edit the above file and run:
-
-~~~shell
-python examples/vision/anil_fc100.py
-~~~
-
-## Reptile
-
-The file [reptile_miniimagenet.py](https://github.com/learnables/learn2learn/blob/master/examples/vision/reptile_miniimagenet.py) reproduces [Reptile](https://arxiv.org/pdf/1803.02999.pdf) on the *mini*-ImageNet dataset.
-
-**Results**
-
-The *mini*-ImageNet file can easily be adapted to obtain results on Omniglot and CIFAR-FS as well.
-
-| Dataset       | Architecture | Ways | Shots | Original | learn2learn |
-|---------------|--------------|------|-------|----------|-------------|
-| Omniglot      | CNN          | 5    | 5     | 99.5%    | 99.5%       |
-| mini-ImageNet | CNN          | 5    | 5     | 66.0%    | 65.5%       |
-| CIFAR-FS      | CNN          | 10   | 3     | n/a      | 46.3%       |
-
-
-**Usage**
-
-Manually edit the above file and run:
-
-~~~shell
-python examples/vision/reptile_miniimagenet.py
-~~~
+Tripletler ile ilgili klasörleri tamamen silip workstation'dan son halerini buraya kopyalar mısın.
+Bir resim dataseti için nasıl oluşturduğunu; ya da bu repoyu kopyalayanın nasıl triplet hazırlayabileceğini yazar mısın.
