@@ -78,7 +78,7 @@ class ConvBlock(torch.nn.Module):
             # track_running_stats=False,
         )
         torch.nn.init.uniform_(self.normalize.weight)
-        self.relu = torch.nn.ReLU()
+        self.relu = torch.nn.ReLU() 
 
         self.conv = torch.nn.Conv2d(
             in_channels,
@@ -311,7 +311,7 @@ class CNN4(torch.nn.Module):
         return x
 
 
-MiniImagenetCNN = CNN4
+# MiniImagenetCNN = CNN4
 
 
 
@@ -358,6 +358,9 @@ class TripletCNN4(torch.nn.Module):
         x3 = self.features(x3)
         x3_clsprob = self.classifier(x3)
         return x1,x2,x3, x1_clsprob, x2_clsprob, x3_clsprob # embeddings and class probabilities
+
+        
+
 
 
 class TripletCNN4_BaselinePP(torch.nn.Module):

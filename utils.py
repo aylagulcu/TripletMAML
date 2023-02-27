@@ -96,7 +96,7 @@ def mean_average_precision(y_true, y_pred, k=12):
 
 def mAP_at_k(D, imgLab, gt, rank=1, posonly="False"):
 
-    _, idx = D.topk(rank[-1],  dim=1 )
+    _, idx = D.topk(rank[-1] )
     preds = np.array([imgLab[i].numpy() for i in idx])
 
     if posonly == "True":
@@ -105,13 +105,6 @@ def mAP_at_k(D, imgLab, gt, rank=1, posonly="False"):
         return [mean_average_precision(gt[:10],preds[:10], k= rank[-1]),mean_average_precision(gt[10:20],preds[10:20], k= rank[-1]),mean_average_precision(gt[20:30],preds[20:30], k= rank[-1]),mean_average_precision(gt[30:40],preds[30:40], k= rank[-1]),mean_average_precision(gt[40:50],preds[40:50], k= rank[-1]),mean_average_precision(gt,preds, k= rank[-1])],idx
     else :
         return mean_average_precision(gt, preds, k= rank[-1]), idx
-
-
-
-
-
-
-
 
 
 
