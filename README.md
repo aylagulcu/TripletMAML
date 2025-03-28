@@ -1,7 +1,16 @@
 TripletMAML: A metric-based model-agnostic meta-learning algorithm for few-shot classification
-## Paper Information
-- Title:  `TripletMAML: A metric-based model-agnostic meta-learning algorithm for few-shot classification`
-- Authors:  `Ayla Gülcü`,`Zeki Kuş`,`İsmail Taha Samed Özkan`,`Osman Furkan Karakuş`
+## Citing TripletMAML
+If you find PySlowFast useful in your research, please use the following BibTeX entry for citation.
+```BibTeX
+@misc{gulcu2025tripletmaml,
+  author =       {Ayla Gülcü, Zeki Kuş, İsmail Taha Samed Özkan and Osman Furkan Karakuş},
+  title =        {PySlowFast},
+  howpublished = {\url{https://github.com/aylagulcu/TripletMAML}},
+  journal = {The Visual Computer}
+  year =         {2025}
+}
+```
+
 
 ## Install & Dependencies
 - python  == 3.9.7
