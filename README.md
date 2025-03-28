@@ -4,7 +4,7 @@ If you find PySlowFast useful in your research, please use the following BibTeX 
 ```BibTeX
 @misc{gulcu2025tripletmaml,
   author =       {Ayla Gülcü, Zeki Kuş, İsmail Taha Samed Özkan and Osman Furkan Karakuş},
-  title =        {PySlowFast},
+  title =        {TripletMAML: A metric-based model-agnostic meta-learning algorithm for few-shot classification},
   howpublished = {\url{https://github.com/aylagulcu/TripletMAML}},
   journal =      {The Visual Computer}
   year =         {2025}
