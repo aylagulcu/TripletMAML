@@ -6,7 +6,7 @@ If you find PySlowFast useful in your research, please use the following BibTeX 
   author =       {Ayla Gülcü, Zeki Kuş, İsmail Taha Samed Özkan and Osman Furkan Karakuş},
   title =        {PySlowFast},
   howpublished = {\url{https://github.com/aylagulcu/TripletMAML}},
-  journal = {The Visual Computer}
+  journal =      {The Visual Computer}
   year =         {2025}
 }
 ```
