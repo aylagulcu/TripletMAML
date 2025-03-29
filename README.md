@@ -1,5 +1,27 @@
-TripletMAML: A metric-based model-agnostic meta-learning algorithm for few-shot classification
-## Citing TripletMAML
+## TripletMAML: A metric-based model-agnostic meta-learning algorithm for few-shot classification
+TripletMAML implements a novel few-shot learning approach by integrating triplet-loss-based metric learning within the Model-Agnostic Meta-Learning (MAML) framework. This repository supports both classification and retrieval tasks while providing reproducible, transparent, and well-documented experiments.
+
+---
+
+## Table of Contents
+
+- [Citation](#citation)
+- [Overview](#overview)
+- [Features](#features)
+- [Installation & Dependencies](#installation--dependencies)
+- [Dataset Preparation](#dataset-preparation)
+- [Usage](#usage)
+- [Directory Structure](#directory-structure)
+- [Detailed Documentation](#detailed-documentation)
+  - [Algorithm Details](#algorithm-details)
+  - [Code Modules](#code-modules)
+  - [Step-by-Step Usage Guides](#step-by-step-usage-guides)
+- [Permanent Links & Reproducibility](#permanent-links--reproducibility)
+
+
+
+
+## Citation
 If you find TripletMAML useful in your research, please use the following BibTeX entry for citation.
 ```BibTeX
 @misc{gulcu2025tripletmaml,
@@ -11,13 +33,54 @@ If you find TripletMAML useful in your research, please use the following BibTeX
 }
 ```
 
+## Overview
 
-## Install & Dependencies
-- python  == 3.9.7
-- learn2learn == 0.1.7 
-- numpy = 1.20.3  
-- pytorch == 1.10.2  and  py3.9_cuda11.3_cudnn8.2.0_0 
-- scikit-learn == 1.2.0
+TripletMAML leverages the strengths of both meta-learning and metric-based learning to tackle the challenges of few-shot classification. By incorporating a triplet loss into the MAML framework, the algorithm learns robust and discriminative feature representations even when data is scarce. This repository includes:
+
+- **Classification Tasks:** Training and evaluation scripts for few-shot classification.
+- **Retrieval Tasks:** Scripts to test the retrieval capability using learned embeddings.
+- **Interactive Experimentation:** A Jupyter Notebook for task control and hyperparameter tuning.
+
+---
+
+## Features
+
+- **Few-Shot Learning:** Designed specifically for few-shot scenarios.
+- **Metric-Based Learning:** Uses triplet loss to improve representation learning.
+- **Meta-Learning Framework:** Builds on MAML for fast adaptation to new tasks.
+- **Comprehensive Dataset Support:** Includes scripts and instructions for Omniglot, MiniImageNet, CUB-200-2011, and CIFAR Few-Shot.
+- **Detailed Documentation:** Clear instructions, algorithm details, and permanent link assurance for reproducibility.
+
+---
+
+## Installation & Dependencies
+
+### Prerequisites
+
+- **Operating System:** Ubuntu 20.04 LTS is recommended.
+- **Python Version:** 3.9.7 (Anaconda distribution is suggested).
+
+### Required Libraries
+
+- `python` == 3.9.7  
+- `learn2learn` == 0.1.7  
+- `numpy` == 1.20.3  
+- `pytorch` == 1.10.2 (compatible with py3.9_cuda11.3_cudnn8.2.0_0)  
+- `scikit-learn` == 1.2.0  
+
+### Setup Instructions
+
+```bash
+git clone https://github.com/aylagulcu/TripletMAML.git
+cd TripletMAML
+python3 -m venv env
+source env/bin/activate
+pip install -r requirements.txt
+```
+
+---
+
+
 
 ## Dataset Preparation
 ![Datasets Visualization](./Images/Datasets.png)
@@ -48,17 +111,26 @@ If you find TripletMAML useful in your research, please use the following BibTeX
   First run the processor then you can use generator to create the test-train-validation files accordingly.
   ```
 
-## Use
-- for classification
-  ```
-  please look into ./TripletMAML/maml_triplet_train_test_val.py
-  ```
-- for retrieval
-  ```
-  please look into ./TripletMAML/maml_triplet_test_retrieval.py
-  ```
+## Usage
 
-## Directory Hierarchy
+### Classification
+```bash
+python TripletMAML/maml_triplet_train_test_val.py
+```
+
+### Retrieval
+```bash
+python TripletMAML/maml_triplet_test_retrieval.py
+```
+
+### Interactive Notebook
+Open:
+```bash
+TripletMAML/TaskControl.ipynb
+```
+
+
+## Directory Structure
 ```
 |—— .gitignore
 |—— data
@@ -102,15 +174,30 @@ If you find TripletMAML useful in your research, please use the following BibTeX
 |        |—— TripletOmniglot.py
 |        |—— __init__.py
 ```
-## Code Details
-### Tested Platform
-- software
-  ```
-  OS: Ubuntu 20.04 LTS
-  Python: 3.9.7 (anaconda)
-  ```
-- hardware
-  ```
-  CPU: Intel(R) Core(TM) i9-10850k CPU @3.60 GHz
-  GPU: Nvidia RTX3090 (24GB)
-  ```
+
+## Detailed Documentation
+
+### Algorithm Details
+
+- **Triplet Loss:** Enhances feature separability across classes.
+- **MAML:** Allows quick adaptation using meta-learning.
+- **Integration:** Triplet loss is incorporated in the inner loop of MAML.
+
+### Code Modules
+
+- `backbone.py`: Defines the neural network architecture.
+- `losses.py`: Implements the triplet loss.
+- `maml_triplet_train_test_val.py`: Training and validation logic.
+- `maml_triplet_test_retrieval.py`: Retrieval evaluation logic.
+
+### Step-by-Step Usage
+
+1. Prepare dataset.
+2. Configure parameters in the relevant script.
+3. Run the experiment (see Usage section).
+
+---
+
+## Permanent Links & Reproducibility
+
+All dataset and code links are verified to be permanent. This documentation is designed for full reproducibility by other researchers.
